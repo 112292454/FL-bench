@@ -151,9 +151,11 @@ class FedRoDModel(DecoupledModel):
         self.eval_per = eval_per
 
     def forward(self, x):
-        z = self.generic_model.get_last_features(x, detach=False)
-        logit_g = self.generic_model.classifier(z)
-        logit_p = self.personalized_classifier(z)
+        zp = self.generic_model.get_last_features(x, detach=True)
+        zg = self.generic_model.get_last_features(x, detach=False)
+
+        logit_g = self.generic_model.classifier(zg)
+        logit_p = self.personalized_classifier(zp)
         if self.training:
             return logit_g, logit_p
         else:

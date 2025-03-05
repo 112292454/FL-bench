@@ -65,6 +65,7 @@ DEFAULTS = {
         "local_epoch": 5,
         "batch_size": 32,
         "reset_optimizer_on_global_epoch": True,
+        "log_name": "null",
         "straggler_ratio": 0,
         "straggler_min_local_epoch": 0,
         "buffers": "global",

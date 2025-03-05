@@ -72,6 +72,8 @@ class FedAvgServer:
         fix_random_seed(self.args.common.seed, use_cuda=self.device.type == "cuda")
 
         self.output_dir = Path(HydraConfig.get().runtime.output_dir)
+        if self.args.common.log_name and self.args.common.log_name != "null":
+            self.output_dir = self.output_dir.parent / self.args.common.log_name
         with open(
             FLBENCH_ROOT / "data" / self.args.dataset.name / "args.json", "r"
         ) as f:
