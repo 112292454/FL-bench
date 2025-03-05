@@ -9,6 +9,18 @@ from dataclasses import dataclass
 from collections import defaultdict
 import time
 import os
+import logging
+
+#### see in https://github.com/uglyghost/FedOBP/blob/master/run_script.py
+
+
+# 设置日志配置
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 @dataclass
 class GPUResource:
@@ -36,20 +48,20 @@ class TaskStats:
             tasks_since_last = self.completed_tasks - self.last_report_count
             time_since_last = current_time - self.last_report_time
             
-            print(f"\n--- 任务统计 ---")
-            print(f"已完成任务数: {self.completed_tasks}")
-            print(f"最近 {tasks_since_last} 个任务平均耗时: {time_since_last/tasks_since_last:.2f} 秒")
-            print(f"总体平均耗时: {(current_time-self.start_time)/self.completed_tasks:.2f} 秒")
+            logger.info("--- 任务统计 ---")
+            logger.info(f"已完成任务数: {self.completed_tasks}")
+            logger.info(f"最近 {tasks_since_last} 个任务平均耗时: {time_since_last/tasks_since_last:.2f} 秒")
+            logger.info(f"总体平均耗时: {(current_time-self.start_time)/self.completed_tasks:.2f} 秒")
             
             self.last_report_time = current_time
             self.last_report_count = self.completed_tasks
     
     def final_report(self):
         if self.completed_tasks > 0:
-            print(f"\n=== 最终统计 ===")
-            print(f"总任务数: {self.completed_tasks}")
-            print(f"平均耗时: {self.total_time/self.completed_tasks:.2f} 秒")
-            print(f"总耗时: {self.total_time:.2f} 秒")
+            logger.info("=== 最终统计 ===")
+            logger.info(f"总任务数: {self.completed_tasks}")
+            logger.info(f"平均耗时: {self.total_time/self.completed_tasks:.2f} 秒")
+            logger.info(f"总耗时: {self.total_time:.2f} 秒")
 
 class GPUManager:
     """GPU资源管理器"""
@@ -61,7 +73,7 @@ class GPUManager:
                 semaphore=asyncio.Semaphore(max_tasks_per_gpu)
             ) for i in range(self.gpu_count)
         }
-        print(f"初始化 {self.gpu_count} 个 GPU，每个GPU最多运行 {max_tasks_per_gpu} 个任务")
+        logger.info(f"初始化 {self.gpu_count} 个 GPU，每个GPU最多运行 {max_tasks_per_gpu} 个任务")
     
     async def acquire_gpu(self, task_slots: int = 1) -> GPUResource:
         """获取负载最小的GPU
@@ -114,7 +126,7 @@ async def run_command_async(command: List[str], log_file: Path, gpu: GPUResource
     task_slots = 2 if dataset_name == 'emnist' else 1
     
     try:
-        print(f"[GPU {gpu.id}] 开始运行: {' '.join(command)}")
+        logger.info(f"[GPU {gpu.id}] 开始运行: {' '.join(command)}")
         with open(log_file, 'w', encoding='utf-8') as f:
             env = dict(os.environ)
             env['CUDA_VISIBLE_DEVICES'] = str(gpu.id)
@@ -138,16 +150,16 @@ async def run_command_async(command: List[str], log_file: Path, gpu: GPUResource
 
             await process.wait()
             if process.returncode != 0:
-                print(f"[GPU {gpu.id}] 命令失败，查看日志文件: {log_file}")
+                logger.error(f"[GPU {gpu.id}] 命令失败，查看日志文件: {log_file}")
             else:
-                print(f"[GPU {gpu.id}] 命令成功完成: {' '.join(command)}")
+                logger.info(f"[GPU {gpu.id}] 命令成功完成: {' '.join(command)}")
     finally:
         duration = time.time() - start_time
         stats.add_task_time(duration)
         # 检查是否是从GPU管理器获取的资源
         if gpu in gpu_manager.gpus.values():
             gpu_manager.release_gpu(gpu, task_slots)
-            print(f"[GPU {gpu.id}] 释放了 {task_slots} 个任务槽 (当前运行: {gpu.running_tasks})")
+            logger.info(f"[GPU {gpu.id}] 释放了 {task_slots} 个任务槽 (当前运行: {gpu.running_tasks})")
 
 async def main():
     # 定义参数
@@ -233,7 +245,7 @@ async def main():
     # 等待所有任务完成
     await asyncio.gather(*tasks)
     stats.final_report()
-    print("\n所有实验已完成。")
+    logger.info("所有实验已完成。")
 
 if __name__ == '__main__':
     asyncio.run(main())
